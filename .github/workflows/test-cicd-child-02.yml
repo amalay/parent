@@ -1,6 +1,8 @@
 name: CI/CD - Child 02
 
 on:
+  workflow_dispatch:
+  
   workflow_call:
 
 permissions:
