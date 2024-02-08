@@ -1,0 +1,3 @@
+[submodule "submodules/parent.child.01"]
+	path = submodules/parent.child.01
+	url = https://github.com/amalay/parent.child.01.git
