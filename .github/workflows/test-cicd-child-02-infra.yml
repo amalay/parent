@@ -1,0 +1,22 @@
+name: CI/CD - Child 02 Infra
+
+on:
+  workflow_dispatch:
+
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Print
+        run: |
+          echo Validating infra for child 02.
+          echo Building infra for child 02.
+          echo Deploying infra for child 02.

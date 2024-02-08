@@ -1,8 +1,8 @@
-name: CI/CD - Child 02
+name: CI/CD - Child 02 App
 
 on:
   workflow_dispatch:
-  
+
   workflow_call:
 
 permissions:
@@ -17,5 +17,6 @@ jobs:
 
       - name: Print
         run: |
-          echo Execute child 02 ci/cd pipeline.
-          echo Testing child 02 ci/cd pipeline.
+          echo Validating app for child 02.
+          echo Building app for child 02.
+          echo Deploying app for child 02.

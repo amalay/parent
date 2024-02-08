@@ -1,4 +1,4 @@
-name: CI/CD - Child 01
+name: CI/CD - Child 01 App
 
 on:
   workflow_dispatch:
@@ -17,5 +17,6 @@ jobs:
 
       - name: Print
         run: |
-          echo Execute child 01 ci/cd pipeline.
-          echo Testing child 01 ci/cd pipeline.
+          echo Validating app for child 01.
+          echo Building app for child 01.
+          echo Deploying app for child 01.

@@ -11,12 +11,5 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # - uses: actions/checkout@v3
-
       - name: Print
-        run: echo Hello!
-
-      # - name: Print
-      #   run: |
-      #     echo Execute parent ci/cd pipeline.
-      #     echo Testing parent ci/cd pipeline.
+        run: echo Test CI/CD!
