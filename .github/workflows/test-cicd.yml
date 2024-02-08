@@ -1,19 +1,22 @@
 name: CI/CD - Parent
 
-on:  
-  push:
-    branches: [ "main" ]
-  
+on:
+  # push:
+  #   branches: [ "main" ]
+
   workflow_dispatch:
 
-jobs:  
-  build:    
+jobs:
+  build:
     runs-on: ubuntu-latest
-    
-    steps:      
-      - uses: actions/checkout@v3
-      
+
+    steps:
+      # - uses: actions/checkout@v3
+
       - name: Print
-        run: |
-          echo Execute parent ci/cd pipeline.
-          echo Testing parent ci/cd pipeline.
+        run: echo Hello!
+
+      # - name: Print
+      #   run: |
+      #     echo Execute parent ci/cd pipeline.
+      #     echo Testing parent ci/cd pipeline.
