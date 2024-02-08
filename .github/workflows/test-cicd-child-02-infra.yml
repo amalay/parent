@@ -9,7 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  infrastructure:
+    name: "Infrastructure"
     runs-on: ubuntu-latest
 
     steps:

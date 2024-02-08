@@ -9,7 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  application:
+    name: "Application"
     runs-on: ubuntu-latest
 
     steps:
