@@ -1,0 +1,247 @@
+Child Workflow
+=============================================================================
+name: Dispatch
+
+on:
+    workflow_dispatch:
+        
+    push:
+        branches:
+        - uat
+        - main
+        - prod
+
+jobs:
+    job1:
+        name: Dispatch Deployment Call
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Dispatch API Deployment
+              run: |
+                    curl -L \
+                    -X POST \
+                    -H "Accept: application/vnd.github.everest-preview+json" \
+                    -H "Authorization: Bearer ${{ secrets.SUBMODULE_GITHUB_TOKEN }}" \
+                    -H "Authentication: Bearer ${{ secrets.SUBMODULE_GITHUB_TOKEN }}" \
+                    -d '{"ref":"${{ github.ref_name }}"}' \
+                    https://api.github.com/repos/StickSecure/StickSecure.App/actions/workflows/CD_AppApi.yml/dispatches
+
+            - name: Dispatch UI Deployment
+              run: |
+                    curl -L \
+                    -X POST \
+                    -H "Accept: application/vnd.github.everest-preview+json" \
+                    -H "Authorization: Bearer ${{ secrets.SUBMODULE_GITHUB_TOKEN }}" \
+                    -H "Authentication: Bearer ${{ secrets.SUBMODULE_GITHUB_TOKEN }}" \
+                    -d '{"ref":"${{ github.ref_name }}"}' \
+                    https://api.github.com/repos/StickSecure/StickSecure.App/actions/workflows/CD_AppUI.yml/dispatches
+
+Parent WorkFlow
+=======================================================================================
+name: CD - Application API
+on:
+  workflow_dispatch:
+
+  workflow_call:
+    secrets:
+      SUBMODULE_GITHUB_TOKEN:
+        required: true
+      AZURE_AD_SP_CREDENTIALS:
+        required: true
+
+  repository_dispatch:
+    types:
+    - cdStickSecureAPI
+
+permissions:
+  contents: read
+  
+env:
+  AZURE_WEBAPP_PACKAGE_PATH: .\publish
+  CONFIGURATION: Release
+  DOTNET_CORE_VERSION: 8.x
+  WORKING_DIRECTORY: .
+
+jobs:
+    BuildAPI:
+     runs-on: windows-latest
+     environment: |-
+        ${{
+            github.ref_name == 'prod' && 'Production'
+        || github.ref_name == 'uat' && 'Staging'
+        || 'Development'
+        }}
+     steps:
+        - name: 'Checkout GitHub Action'
+          uses: actions/checkout@v3
+          with:
+            repository: StickSecure/StickSecure
+            ref: ${{ github.ref_name }}
+            token: ${{ secrets.SUBMODULE_GITHUB_TOKEN }}
+
+        - name: Setup .NET SDK
+          uses: actions/setup-dotnet@v1.8.0
+          with:
+            include-prerelease: True
+            dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
+        
+        - name: Restore
+          run: dotnet restore "${{ env.WORKING_DIRECTORY }}/src/API"
+        
+        - name: Build
+          run: dotnet build "${{ env.WORKING_DIRECTORY }}/src/API" --configuration ${{ env.CONFIGURATION }} --no-restore
+        
+        - name: Publish
+          run: dotnet publish "${{ env.WORKING_DIRECTORY }}/src/API" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
+        
+        - name: Publish Artifacts
+          uses: actions/upload-artifact@v3
+          with:
+            name: webapp
+            path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+    
+    DeployAPI:
+      runs-on: windows-latest
+      environment: |-
+          ${{
+              github.ref_name == 'prod' && 'Production'
+          || github.ref_name == 'uat' && 'Staging'
+          || 'Development'
+          }}
+      needs: BuildAPI
+      env:
+        APP_NAME: ${{ vars.AZURE_RESOURCE_PREFIX }}-api
+      steps:
+      - name: 'Login via Azure'
+        uses: azure/login@v1
+        with:
+            creds: ${{ secrets.AZURE_AD_SP_CREDENTIALS }}
+
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v3
+        with:
+          name: webapp
+          path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+  
+      - name: Deploy to Azure WebApp
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.APP_NAME }}
+          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
+
+Parent Work Flow
+========================================
+          name: CD - Application UI
+on:
+  workflow_dispatch:
+
+  workflow_call:
+    secrets:
+      SUBMODULE_GITHUB_TOKEN:
+        required: true
+      AZURE_AD_SP_CREDENTIALS:
+        required: true
+
+  repository_dispatch:
+    types:
+    - cdStickSecureUI
+
+permissions:
+  contents: read
+  
+env:
+  AZURE_WEBAPP_PACKAGE_PATH: .\publish
+  CONFIGURATION: Release
+  DOTNET_CORE_VERSION: 8.x
+  WORKING_DIRECTORY: .
+
+jobs:
+    BuildUI:
+     runs-on: windows-latest
+     environment: |-
+        ${{
+            github.ref_name == 'prod' && 'Production'
+        || github.ref_name == 'uat' && 'Staging'
+        || 'Development'
+        }}
+     env:
+        VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        VITE_AUTH0_DOMAIN: ${{ vars.VITE_AUTH0_DOMAIN }}
+        VITE_ISSUER_BASE_URL: ${{ vars.VITE_ISSUER_BASE_URL }}
+        VITE_AUTH0_CLIENT_ID: ${{ secrets.VITE_AUTH0_CLIENT_ID }}
+     steps:
+        - name: Validate Environment
+          run: |
+           echo 'TAG ENV - ${{ vars.TAG_ENV}}'
+    
+        - name: 'Checkout GitHub Action'
+          uses: actions/checkout@v3
+          with:
+            repository: StickSecure/StickSecure
+            ref: ${{ github.ref_name }}
+            token: ${{ secrets.SUBMODULE_GITHUB_TOKEN }}
+
+        - name: Setup .NET SDK
+          uses: actions/setup-dotnet@v1.8.0
+          with:
+           include-prerelease: True
+           dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
+
+        - name: Setup node
+          uses: actions/setup-node@v3
+          with:
+            node-version: 18
+            
+        - name: npm ci
+          working-directory: "src/Web/ClientApp"
+          run: npm ci
+      
+        - name: Restore
+          run: dotnet restore "${{ env.WORKING_DIRECTORY }}/src/Web"
+      
+        - name: Build
+          run: dotnet build "${{ env.WORKING_DIRECTORY }}/src/Web" --configuration ${{ env.CONFIGURATION }} --no-restore -p:environment=Staging
+      
+        - name: Publish
+          run: dotnet publish "${{ env.WORKING_DIRECTORY }}/src/Web" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
+      
+        - name: Publish Artifacts
+          uses: actions/upload-artifact@v3
+          with:
+              name: webapp
+              path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+    
+    DeployUI:
+      runs-on: windows-latest
+      environment: |-
+          ${{
+              github.ref_name == 'prod' && 'Production'
+          || github.ref_name == 'uat' && 'Staging'
+          || 'Development'
+          }}
+      needs: BuildUI
+      env:
+        APP_NAME: ${{ vars.AZURE_RESOURCE_PREFIX }}-ui
+      steps:
+      - name: Validate Environment
+        run: |
+         echo 'TAG ENV - ${{ vars.TAG_ENV}}'
+
+      - name: 'Login via Azure'
+        uses: azure/login@v1
+        with:
+            creds: ${{ secrets.AZURE_AD_SP_CREDENTIALS }}
+
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v3
+        with:
+          name: webapp
+          path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+  
+      - name: Deploy to Azure WebApp
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.APP_NAME }}
+          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
